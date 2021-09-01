@@ -1,3 +1,13 @@
+# build file
+/dist
+/design
+/public
+
+# linting
+.eslintrc.js
+.prettierrc
+*.code-workspace
+
 # Logs
 logs
 *.log
