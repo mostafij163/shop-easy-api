@@ -10,6 +10,7 @@ import { Shop, ShopDocument } from "../../shop/schemas/shop.schema"
 import { InjectModel } from "@nestjs/mongoose"
 import { Model } from "mongoose"
 import { LocationService } from "../../location/services/location.service"
+import { DeliverymanModule } from "../../deliveryman/deliveryman.module"
 
 @WebSocketGateway({
     cors: {
@@ -121,8 +122,13 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
             const products = newOrder.productList.filter(product => {
                 if(product.shop === shopId) return product
             })
+            let total: number = 0;
+            products.forEach(prod => {
+                total += prod.price * prod.quantity
+            })
             return {
                 products: products,
+                total: total,
                 id: shop["_id"],
                 name: shop.name,
                 coordinates: shop.location.coordinates,
@@ -137,14 +143,10 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
         shopsWithProducts.forEach(shop => {
             this.connectedSockets.forEach(client => {
                 if (client.shopId == shop.id) {
-                    let total: number = 0;
-                    shop.products.forEach(prod => {
-                        total += prod.price * prod.quantity
-                    })
                     const orderDataForShop = {
                         id: newOrder["_id"],
                         customerName: newOrder.customerName,
-                        total: total,
+                        total: shop.total,
                         deliveryStatus: newOrder.deliveryStatus,
                         time: newOrder.createdAt,
                         products:shop.products
@@ -159,45 +161,66 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
                 return client
             }
         })
-
-        // const orderShopsPromise = shopsArrUnique.map(async (shopId) => {
-        //     const shop = await this.shopModel.findById(shopId)
-        //     if (shop) {
-        //         return shop
-        //     } else {
-        //         throw new BadRequestException(`${shopId} Shop not exist`)
-        //     }
-        // })
-        // Promise.all(orderShopsPromise).then(shops => {
         
-            const deliveryManDistances = deliverymen.map(deliveryman => {
-                const [lng, lat] = newOrder.deliveryLocation.coordinates
-                const orderDistanceFromDeliveryMan = this.locationService.calculateDistance(
-                    lat, lng, deliveryman.lngLat[1], deliveryman.lngLat[0]
+        const deliveryManDistances = deliverymen.map(deliveryman => {
+            const [lng, lat] = newOrder.deliveryLocation.coordinates
+            const orderDistanceFromDeliveryMan = this.locationService.calculateDistance(
+                lat, lng, deliveryman.lngLat[1], deliveryman.lngLat[0]
+            )
+
+            const shopDistancesFromDeliveryMan = shopsWithProducts.map(shop => {
+                const distance = this.locationService.calculateDistance(
+                    deliveryman.lngLat[1],
+                    deliveryman.lngLat[0],
+                    shop.coordinates[1],
+                    shop.coordinates[0]
                 )
-
-                const shopDistancesFromDeliveryMan = shopsWithProducts.map(shop => {
-                    const distance = this.locationService.calculateDistance(
-                        deliveryman.lngLat[1],
-                        deliveryman.lngLat[0],
-                        shop.coordinates[1],
-                        shop.coordinates[0]
-                    )
-                    return {
-                        id: shop.id,
-                        name: shop.name,
-                        distance: distance,
-                        lngLat: shop.coordinates
-                    }
-                })
-
-                const distances = shopDistancesFromDeliveryMan.map(val => val.distance)
-                const totalShopDistances = distances.reduce((prevValue, currValue) => prevValue + currValue)
-
-                return totalShopDistances + orderDistanceFromDeliveryMan
+                return distance
             })
+
+            const totalShopDistances = shopDistancesFromDeliveryMan.reduce((prevValue, currValue) => prevValue + currValue)
+
+            const totalDistance = totalShopDistances + orderDistanceFromDeliveryMan
+
+            return {
+                deliveryman: deliveryman,
+                totalDistance: totalDistance
+            }
+        })
+
+        const orderDataForDeliveryMan = {
+                id: newOrder["_id"],
+                customerName: newOrder.customerName,
+                time: newOrder.createdAt,
+                products: shopsWithProducts,
+                total: newOrder.total
+        }
         
-        // })
+        console.log("order data for delivery", orderDataForDeliveryMan)
+        
+        this.shortAsending(deliveryManDistances)
+        this.wsServer.sockets.in(deliveryManDistances[0].deliveryman.socketId)
+            .emit('new-order', orderDataForDeliveryMan)
+        this.orderService.updateAnOrder(newOrder["_id"], {
+            deliveryMan: deliveryManDistances[0].deliveryman.userId
+        })
+    }
+
+    private shortAsending(arr: Array<{deliveryman: any,totalDistance: number}>) {
+        for (let i = 0; i < arr.length - 1; i++) {
+            let isSwapped = false
+            for (let j = 0; j < arr.length - i - 1; j++) {
+                if (arr[j].totalDistance > arr[j + 1].totalDistance) {
+                    let temp = arr[j]
+                    arr[j] = arr[j + 1]
+                    arr[j + 1] = temp
+                    isSwapped = true
+                }
+            }
+            if (!isSwapped) {
+                break
+            }
+        }
     }
 
 }

@@ -14,18 +14,16 @@ import { OrderGateway } from "./services/order.gateway";
 import { NewOrderDTO } from "./dto/newOrder.dto";
 import { JwtAuthGuard } from "../authentication/guards/jwtAuth.guard";
 import { Request } from "express";
-import * as jwtService from "jsonwebtoken"
+import { JWTService } from "../authentication/services/jwt.service";
+import { OrderService } from "./services/order.service";
 
 @Controller('order')
 export class OrderController {
-    private jwtToken: string
     constructor(
         private orderGateway: OrderGateway,
-    ) {
-        const token = process.env.JWT_SECRET
-        if (token) this.jwtToken = token
-        else throw new Error('JWT SECRET NOT FOUND')
-    }
+        private jwtService: JWTService,
+        private orderService: OrderService
+    ) {}
     
     @UseGuards(JwtAuthGuard)
     @Post('new-order')
@@ -41,12 +39,13 @@ export class OrderController {
     @Get('shop-orders')
     async getMyShopOrders(@Req() req: Request, @Headers('x-shop-jwt') shopToken: string) {
         const shopJwt = shopToken.split(" ")[1]
-        const decodedShop = jwtService.verify(shopJwt, this.jwtToken, {
+        const decodedShop = this.jwtService.verifyToken(shopJwt, {
             audience: "shop",
         })
         const user: any = req.user
         if (user.role === "seller") {
-            
+            console.log(decodedShop)
+            // await this.orderService.getAShopOrders(decodedShop.sub)
         } else {
             throw new ForbiddenException()
         }
