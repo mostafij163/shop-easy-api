@@ -11,7 +11,6 @@ import { DeliveryManService } from './services/deliveryman.service';
             name: DeliveryMan.name,
             schema: deliverymanSchema
         }]),
-        forwardRef(() => AuthenticationModule)
     ],
     providers: [DeliveryManService],
     controllers: [DeliveryManController],

@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { AuthService } from 'src/authentication/services/auth.service';
 import { EmailService } from 'src/authentication/services/email.service';
-import { JWTService } from 'src/authentication/services/jwt.service';
+import { JWTService } from '../../authentication/services/jwt.service';
 import { NewDeliveryManDTO } from '../dto/newDeliveryman.dto';
 import { DeliveryMan } from '../schemas/deliveryman.schema';
 
@@ -11,9 +11,7 @@ import { DeliveryMan } from '../schemas/deliveryman.schema';
 export class DeliveryManService extends AuthService {
     constructor(
         @InjectModel(DeliveryMan.name) private DeliveryManModel: mongoose.Model<DeliveryMan>,
-        @Inject(forwardRef(() => JWTService))
         protected jwtService: JWTService,
-        @Inject(forwardRef(() => EmailService))
         private emailService: EmailService,
     ) {
         super(DeliveryManModel, jwtService);

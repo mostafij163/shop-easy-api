@@ -4,17 +4,20 @@ import { Order, orderSchema } from "./schemas/order.schema";
 import { OrderController } from "./order.controller";
 import { OrderService } from "./services/order.service";
 import { OrderGateway } from "./services/order.gateway";
-import { AuthenticationModule } from "../authentication/auth.module";
+import { ShopModule } from "../shop/shop.module";
+import { SellerModule } from "../seller/seller.module";
+import { LocationModule } from "../location/location.module";
 
 @Module({
     imports: [
-        AuthenticationModule,
         MongooseModule.forFeature([
             {
                 name: Order.name,
                 schema: orderSchema
-            }
+            },
         ]),
+        ShopModule,
+        LocationModule
     ],
     providers: [OrderService, OrderGateway],
     controllers: [OrderController],

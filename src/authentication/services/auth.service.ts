@@ -8,7 +8,6 @@ import { NewSellerDTO } from "src/seller/dto/newSeller.dto";
 import { Seller } from "src/seller/schemas/seller.schema";
 import { CommonUsers } from "src/utils/mongoose/usersCommon";
 import { JWTService } from "./jwt.service";
-
 export class AuthService {
     constructor(
         protected UserModel: Model<any>,

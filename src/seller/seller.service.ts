@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { AuthService } from 'src/authentication/services/auth.service';
 import { EmailService } from 'src/authentication/services/email.service';
-import { JWTService } from 'src/authentication/services/jwt.service';
+import { JWTService } from '../authentication/services/jwt.service';
 import { NewSellerDTO } from './dto/newSeller.dto';
 import { Seller } from './schemas/seller.schema';
 
@@ -11,9 +11,7 @@ import { Seller } from './schemas/seller.schema';
 export class SellerService extends AuthService {
     constructor(
         @InjectModel(Seller.name) private SellerModel: mongoose.Model<Seller>,
-        @Inject(forwardRef(() => JWTService))
         protected jwtService: JWTService,
-        @Inject(forwardRef(() => EmailService))
         private emailService: EmailService,
     ) {
         super(SellerModel, jwtService);

@@ -5,8 +5,7 @@ import { FilterQueryDTO } from "src/shop/dto/filterQueryDto";
 import { ClothAndShoeDocument } from "src/shop/schemas/productSchemas/clothAndShoe.schema";
 import { MedicineDocument } from "src/shop/schemas/productSchemas/medicine.schema";
 import { UpdateQueryDTO } from "src/shop/dto/updateProdQuery";
-import { title } from "process";
-import { HttpException, HttpStatus, InternalServerErrorException } from "@nestjs/common";
+import {InternalServerErrorException } from "@nestjs/common";
 
 export abstract class ProductService {
     protected ProductModel: mongoose.Model<any>

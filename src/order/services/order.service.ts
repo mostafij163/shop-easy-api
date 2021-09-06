@@ -1,12 +1,15 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import { ShopService } from "../../shop/services/shop.service";
 import { NewOrderDTO } from "../dto/newOrder.dto";
 import {Order, OrderDocument } from "../schemas/order.schema";
 
 @Injectable()
 export class OrderService {
-    constructor(@InjectModel(Order.name) private orderModel: Model<OrderDocument>) { }
+    constructor(
+        @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
+    ) { }
     
     async createNewOrder(newOrderDto: NewOrderDTO) {
         try {

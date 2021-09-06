@@ -7,7 +7,6 @@ import { SellerService } from './seller.service';
 
 @Module({
   imports: [
-    forwardRef(() => AuthenticationModule),
     MongooseModule.forFeature([{
       name: Seller.name,
       schema: sellerSchema,

@@ -1,32 +1,24 @@
-import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, InternalServerErrorException, NotFoundException, Scope, } from '@nestjs/common';
+import { HttpStatus, Injectable, InternalServerErrorException, NotFoundException, Scope, } from '@nestjs/common';
 import { InjectModel, } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { ClothAndShoeDTO } from '../dto/clothAndShoe.dto';
-import { MedicineDTO } from '../dto/medicine.dto';
 import { NewShopDTO } from '../dto/newShop.dto';
 import { FilterQueryDTO } from '../dto/filterQueryDto';
-import { ClothAndShoeDocument } from '../schemas/productSchemas/clothAndShoe.schema';
-import { MedicineDocument } from '../schemas/productSchemas/medicine.schema';
 import { Shop, ShopDocument } from '../schemas/shop.schema';
-import { ProductFactoryService } from './productFactory.service';
 import { ClothAndShoeService } from './productServices/clothAndShoe.service';
 import { MedicineService } from './productServices/medicine.service';
 import { UpdateQueryDTO } from '../dto/updateProdQuery';
 import { FilterService } from './filter.service';
-import { JWTService } from 'src/authentication/services/jwt.service';
-import * as JsonWebToken from "jsonwebtoken"
-import { shopCategory } from '../utils/shopCategory.enum';
+import { JWTService } from '../../authentication/services/jwt.service';
 
 @Injectable()
 export class ShopService {
     constructor(
         @InjectModel(Shop.name) private readonly ShopModel: mongoose.Model<ShopDocument>,
-        private productFactoryService: ProductFactoryService,
         private clothandshoeService: ClothAndShoeService,
         private medicineService: MedicineService,
         private filterService: FilterService,
         private jwtService: JWTService,
-    ) { }
+    ) {}
 
     async createShop(newShopDto: NewShopDTO): Promise<string> {
         let newShop: ShopDocument
@@ -40,11 +32,14 @@ export class ShopService {
                 ownerId: newShop.owner,
                 title: newShop.name,
                 category: newShop.shopCategory
-            }, {
-            audience: "shop",
-            subject: newShop.id,
-            expiresIn: "365d"
-        })
+            },
+            {
+                audience: "shop",
+                subject: newShop.id,
+                expiresIn: "365d",
+                issuer: "shopeasy"
+            }
+        )
 
         return jwtToken;
     }
@@ -72,11 +67,14 @@ export class ShopService {
                     ownerId: shop.owner,
                     title: shop.name,
                     category: shop.shopCategory
-                }, {
-                audience: "shop",
-                subject: shop.id,
-                expiresIn: "365d"
-            })
+                },
+                {
+                    audience: "shop",
+                    subject: shop.id,
+                    expiresIn: "365d",
+                    issuer: "shopeasy"
+                }    
+            )
             return {shop, jwt: jwtToken}
         } catch (error) {
             throw new InternalServerErrorException(error)
@@ -111,7 +109,7 @@ export class ShopService {
     }
 
     async updateProduct(productId: string, jwtToken: string, query: UpdateQueryDTO) {
-        const decodedShop: any = this.jwtService.verifyToken(jwtToken, {
+        const decodedShop: any = this.jwtService.verifyToken(jwtToken,{
             audience: "shop"
         });
         if (decodedShop.category === "MEDICINE") {
@@ -133,7 +131,7 @@ export class ShopService {
     }
 
     async createProduct(product: any, jwt: string) {
-        const decodedToken: any = JsonWebToken.decode(jwt)
+        const decodedToken: any = this.jwtService.verifyToken(jwt)
         try {
             if (decodedToken.category === "MEDICINE") {
                 return await this.medicineService.create({
@@ -162,7 +160,7 @@ export class ShopService {
     }
 
     async getAllProducts(jwt: string) {
-        const decodedToken: any = JsonWebToken.decode(jwt)
+        const decodedToken: any = this.jwtService.verifyToken(jwt)
         if (decodedToken.category === "MEDICINE") {
             return await this.medicineService.getAll(decodedToken.sub).query
         } else if (decodedToken.category === "CLOTHANDSHOE") {

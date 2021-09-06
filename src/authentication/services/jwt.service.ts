@@ -1,21 +1,10 @@
-import { BadRequestException, Injectable, Optional } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Scope } from "@nestjs/common";
 import * as jwt from "jsonwebtoken";
 import { ALGORITHMS, JWTOptions } from "../utils/jwtOptions.interface";
 
 @Injectable()
 export class JWTService {
-    private jwtSecret: string;
-    constructor(
-        @Optional() jwtSecret: string,
-    ) {
-        if (jwtSecret) {
-            this.jwtSecret = jwtSecret
-        } else if (process.env.JWT_SECRET) {
-            this.jwtSecret = process.env.JWT_SECRET
-        } else {
-            throw new Error('Could not find JWT_SECRET')
-        }
-    }
+    constructor(@Inject("JWT_SECRET") private jwtSecret: string,) {}
 
     signToken(payload: string | object | Buffer,
         jwtOptions: JWTOptions = {

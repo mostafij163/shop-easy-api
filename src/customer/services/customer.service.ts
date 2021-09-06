@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NewUserDTO } from "../../authentication/dto/newUser.dto";
@@ -11,9 +11,7 @@ import { AuthService } from "src/authentication/services/auth.service";
 export class CustomerService extends AuthService {
     constructor(
         @InjectModel(Customer.name) private CustomerModel: Model<Customer>,
-        @Inject(forwardRef(() => JWTService))
         protected jwtService: JWTService,
-        @Inject(forwardRef(() => EmailService))
         private emailService: EmailService,
     ) {
         super(CustomerModel, jwtService);
