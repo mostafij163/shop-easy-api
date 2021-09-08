@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
-import { BadRequestException, ForbiddenException, forwardRef, Optional, UnauthorizedException } from "@nestjs/common"
-import { MessageBody, OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer, WsException } from "@nestjs/websockets"
+import { BadRequestException, ForbiddenException, UnauthorizedException } from "@nestjs/common"
+import { MessageBody, OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer, } from "@nestjs/websockets"
 import { Server, Socket } from "socket.io"
 import { NewOrderDTO } from "../dto/newOrder.dto"
 import { OrderService } from "./order.service"
@@ -10,7 +10,7 @@ import { Shop, ShopDocument } from "../../shop/schemas/shop.schema"
 import { InjectModel } from "@nestjs/mongoose"
 import { Model } from "mongoose"
 import { LocationService } from "../../location/services/location.service"
-import { DeliverymanModule } from "../../deliveryman/deliveryman.module"
+import { DeliveryStatusChangeDTO } from "../dto/deliveryStatusChange.dto"
 
 @WebSocketGateway({
     cors: {
@@ -112,55 +112,40 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
     @SubscribeMessage('new-order')
     async handleNewOrder(@MessageBody() newOrderDto: NewOrderDTO) {
         const newOrder = await this.orderService.createNewOrder(newOrderDto)
-        const shops = newOrder.productList.map(product => product.shop)
-        const shopsArrUnique = Array.from(new Set(shops))
-        const shopsWithProductsPromise = shopsArrUnique.map(async (shopId) => {
-            const shop = await this.shopModel.findById(shopId)
-            if (!shop) {
-                throw new BadRequestException(`${shopId} Shop not exist`)
+
+        const shopsWithProductsPromise = newOrder.productList.map(async (productsOfAShop) => {
+            const shopDoc = await this.shopModel.findById(productsOfAShop.shopId)
+            if (!shopDoc) {
+                throw new BadRequestException(`${productsOfAShop.shopId} Shop not exist`)
             }
-            const products = newOrder.productList.filter(product => {
-                if(product.shop === shopId) return product
-            })
+            
             let total: number = 0;
-            products.forEach(prod => {
+            productsOfAShop.products.forEach(prod => {
                 total += prod.price * prod.quantity
             })
             return {
-                products: products,
+                products: productsOfAShop,
                 total: total,
-                id: shop["_id"],
-                name: shop.name,
-                coordinates: shop.location.coordinates,
-                openingHour: shop.openingHour,
-                closingHour: shop.closingHour,
-                category: shop.shopCategory
+                id: shopDoc["_id"],
+                name: shopDoc.name,
+                coordinates: shopDoc.location.coordinates,
+                openingHour: shopDoc.openingHour,
+                closingHour: shopDoc.closingHour,
+                category: shopDoc.shopCategory
             }
         })
 
         const shopsWithProducts = await Promise.all(shopsWithProductsPromise)
-
-        shopsWithProducts.forEach(shop => {
-            this.connectedSockets.forEach(client => {
-                if (client.shopId == shop.id) {
-                    const orderDataForShop = {
-                        id: newOrder["_id"],
-                        customerName: newOrder.customerName,
-                        total: shop.total,
-                        deliveryStatus: newOrder.deliveryStatus,
-                        time: newOrder.createdAt,
-                        products:shop.products
-                    }
-                    this.wsServer.sockets.in(client.socketId).emit('new-order', orderDataForShop)
-                }
-            })
-        })
 
         const deliverymen = this.connectedSockets.filter(client => {
             if (client.role === "deliveryman") {
                 return client
             }
         })
+
+        if (deliverymen.length === 0) {
+            throw new Error("NO DELIVERY MAN ")
+        }
         
         const deliveryManDistances = deliverymen.map(deliveryman => {
             const [lng, lat] = newOrder.deliveryLocation.coordinates
@@ -188,21 +173,85 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
             }
         })
 
-        const orderDataForDeliveryMan = {
-                id: newOrder["_id"],
-                customerName: newOrder.customerName,
-                time: newOrder.createdAt,
-                products: shopsWithProducts,
-                total: newOrder.total
-        }
-        
-        console.log("order data for delivery", orderDataForDeliveryMan)
-        
         this.shortAsending(deliveryManDistances)
+        const updatedOrder = await this.orderService.updateAnOrder(newOrder["_id"], {
+            deliveryMan: deliveryManDistances[0].deliveryman.userId
+        })
+
+        console.log(updatedOrder)
+
+        shopsWithProducts.forEach(shop => {
+            this.connectedSockets.forEach(client => {
+                if (client.shopId == shop.id) {
+                    const orderDataForShop = {
+                        id: newOrder["_id"],
+                        customerName: newOrder.customerName,
+                        total: shop.total,
+                        deliveryStatus: newOrder.deliveryStatus,
+                        time: newOrder.createdAt,
+                        products: shop.products,
+                        deliveryMan: updatedOrder?.deliveryMan
+                    }
+                    this.wsServer.sockets.in(client.socketId).emit('new-order', orderDataForShop)
+                }
+            })
+        })
+
+        // const deliverymen = this.connectedSockets.filter(client => {
+        //     if (client.role === "deliveryman") {
+        //         return client
+        //     }
+        // })
+
+        // if (deliverymen.length === 0) {
+        //     throw new Error("NO DELIVERY MAN ")
+        // }
+        
+        // const deliveryManDistances = deliverymen.map(deliveryman => {
+        //     const [lng, lat] = newOrder.deliveryLocation.coordinates
+        //     const orderDistanceFromDeliveryMan = this.locationService.calculateDistance(
+        //         lat, lng, deliveryman.lngLat[1], deliveryman.lngLat[0]
+        //     )
+
+        //     const shopDistancesFromDeliveryMan = shopsWithProducts.map(shop => {
+        //         const distance = this.locationService.calculateDistance(
+        //             deliveryman.lngLat[1],
+        //             deliveryman.lngLat[0],
+        //             shop.coordinates[1],
+        //             shop.coordinates[0]
+        //         )
+        //         return distance
+        //     })
+
+        //     const totalShopDistances = shopDistancesFromDeliveryMan.reduce((prevValue, currValue) => prevValue + currValue)
+
+        //     const totalDistance = totalShopDistances + orderDistanceFromDeliveryMan
+
+        //     return {
+        //         deliveryman: deliveryman,
+        //         totalDistance: totalDistance
+        //     }
+        // })
+
+        const orderDataForDeliveryMan = {
+            id: newOrder["_id"],
+            customerName: newOrder.customerName,
+            time: newOrder.createdAt,
+            products: shopsWithProducts,
+            total: newOrder.total,
+            deliveryStatus: newOrder.deliveryStatus
+        }
         this.wsServer.sockets.in(deliveryManDistances[0].deliveryman.socketId)
             .emit('new-order', orderDataForDeliveryMan)
-        this.orderService.updateAnOrder(newOrder["_id"], {
-            deliveryMan: deliveryManDistances[0].deliveryman.userId
+    }
+
+    @SubscribeMessage("status-change-shop")
+    changeDeliveryStatus(@MessageBody() data: DeliveryStatusChangeDTO) {
+        const deliveryMan = this.connectedSockets.find(client => client.userId == data.deliveryMan)
+        this.wsServer.sockets.in(deliveryMan.socketId).emit("delivery-status-change", {
+            id: data.id,
+            shopId: data.shopId,
+            changeTo: data.changeTo
         })
     }
 

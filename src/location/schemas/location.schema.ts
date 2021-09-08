@@ -3,7 +3,7 @@ import * as mongoose from 'mongoose';
 
 export type LocationDocument = Location & mongoose.Document;
 
-@Schema()
+@Schema({_id: false})
 export class Location{
     @Prop({
         default: "Point",

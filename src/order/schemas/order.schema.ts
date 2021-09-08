@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import * as mongoose from "mongoose";
-import { ProductList } from "../utils/productList.type";
 import { LocationSchema, Location } from "../../location/schemas/location.schema";
+import { ProductList, productListSchema } from "./productList.schema";
 
 export type OrderDocument = Order & mongoose.Document;
 
@@ -22,7 +22,8 @@ export class Order {
     customerName!: string
 
     @Prop({
-        required: true
+        required: true,
+        type: [productListSchema]
     })
     productList!: ProductList[]
 

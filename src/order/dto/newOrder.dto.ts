@@ -1,5 +1,5 @@
 import { Location } from "../../location/schemas/location.schema";
-import { ProductList } from "../utils/productList.type";
+import { ProductList } from "../schemas/productList.schema";
 
 export class NewOrderDTO {
     customer!: string;
