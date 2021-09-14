@@ -197,42 +197,6 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
             })
         })
 
-        // const deliverymen = this.connectedSockets.filter(client => {
-        //     if (client.role === "deliveryman") {
-        //         return client
-        //     }
-        // })
-
-        // if (deliverymen.length === 0) {
-        //     throw new Error("NO DELIVERY MAN ")
-        // }
-        
-        // const deliveryManDistances = deliverymen.map(deliveryman => {
-        //     const [lng, lat] = newOrder.deliveryLocation.coordinates
-        //     const orderDistanceFromDeliveryMan = this.locationService.calculateDistance(
-        //         lat, lng, deliveryman.lngLat[1], deliveryman.lngLat[0]
-        //     )
-
-        //     const shopDistancesFromDeliveryMan = shopsWithProducts.map(shop => {
-        //         const distance = this.locationService.calculateDistance(
-        //             deliveryman.lngLat[1],
-        //             deliveryman.lngLat[0],
-        //             shop.coordinates[1],
-        //             shop.coordinates[0]
-        //         )
-        //         return distance
-        //     })
-
-        //     const totalShopDistances = shopDistancesFromDeliveryMan.reduce((prevValue, currValue) => prevValue + currValue)
-
-        //     const totalDistance = totalShopDistances + orderDistanceFromDeliveryMan
-
-        //     return {
-        //         deliveryman: deliveryman,
-        //         totalDistance: totalDistance
-        //     }
-        // })
-
         const orderDataForDeliveryMan = {
             id: newOrder["_id"],
             customerName: newOrder.customerName,
@@ -247,12 +211,22 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
 
     @SubscribeMessage("status-change-shop")
     changeDeliveryStatus(@MessageBody() data: DeliveryStatusChangeDTO) {
+        console.log(data)
         const deliveryMan = this.connectedSockets.find(client => client.userId == data.deliveryMan)
+        console.log(deliveryMan)
         this.wsServer.sockets.in(deliveryMan.socketId).emit("delivery-status-change", {
             id: data.id,
             shopId: data.shopId,
             changeTo: data.changeTo
         })
+    }
+
+    @SubscribeMessage("status-changed")
+    acceptDelivery(@MessageBody() data: {id: string, shopId: string, deliveryStatus:string}) {
+        const seller = this.connectedSockets.find(client => client.shopId == data.shopId)
+        this.orderService.updateShopOrderStatus(data.id, data.shopId, data.deliveryStatus)
+        this.wsServer.sockets.in(seller.socketId).emit("status-changed",
+            { id: data.id, deliveryStatus: data.deliveryStatus })
     }
 
     private shortAsending(arr: Array<{deliveryman: any,totalDistance: number}>) {

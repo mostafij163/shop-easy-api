@@ -39,15 +39,45 @@ export class OrderController {
     @Get('shop-orders')
     async getMyShopOrders(@Req() req: Request, @Headers('x-shop-jwt') shopToken: string) {
         const shopJwt = shopToken.split(" ")[1]
-        const decodedShop = this.jwtService.verifyToken(shopJwt, {
+        const decodedShop: any = this.jwtService.verifyToken(shopJwt, {
             audience: "shop",
         })
         const user: any = req.user
-        if (user.role === "seller") {
-            console.log(decodedShop)
-            // await this.orderService.getAShopOrders(decodedShop.sub)
+        if (user.role == "seller") {
+            const data = await this.orderService.getAShopOrders(decodedShop.sub)
+            const formatedData = data.map(d => {
+                return {
+                    id: d["_id"],
+                    products: d.products[0],
+                    customerName: d.customerName,
+                    customer: d.customer,
+                    time: d.time,
+                    deliveryLocation: d.deliveryLocation,
+                    deliveryMan: d.deliveryMan
+                }
+            })
+            return formatedData
         } else {
             throw new ForbiddenException()
         }
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('deliveryman-orders')
+    async getDeliveryManOrders(@Req() req: Request) {
+        const user: any = req.user
+        if (user.role == "deliveryman") {
+            return await this.orderService.getADeliveryManOrders(user.id)
+        } else {
+            throw new ForbiddenException()
+        }
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('my-orders')
+    async getMyOrders(@Req() req: Request) {
+        const user: any = req.user
+        const data = await this.orderService.getMyOrders(user.id)
+        return data
     }
 }
