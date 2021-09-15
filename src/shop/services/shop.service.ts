@@ -48,7 +48,7 @@ export class ShopService {
         try {
             const shop = await this.ShopModel.findById(shopId);
             if (!shop) {
-                return new NotFoundException({message: "Shop not found", status:HttpStatus.NOT_FOUND})
+                throw new NotFoundException({message: "Shop not found", status:HttpStatus.NOT_FOUND})
             }
             return shop;
         } catch (error) {

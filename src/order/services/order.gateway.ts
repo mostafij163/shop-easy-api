@@ -31,7 +31,7 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
         this.connectedSockets = []
     }
 
-    @WebSocketServer() wsServer!: Server
+    @WebSocketServer() private wsServer!: Server
 
     handleDisconnect(socket: Socket) {
         console.log(socket.id + " " + "disconneted")
@@ -210,7 +210,7 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayInit, OnGatew
     }
 
     @SubscribeMessage("status-change-shop")
-    changeDeliveryStatus(@MessageBody() data: DeliveryStatusChangeDTO) {
+    private changeDeliveryStatus(@MessageBody() data: DeliveryStatusChangeDTO) {
         console.log(data)
         const deliveryMan = this.connectedSockets.find(client => client.userId == data.deliveryMan)
         console.log(deliveryMan)
